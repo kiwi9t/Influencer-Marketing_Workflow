@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Platform {
+  YouTube
+  TikTok
+  Instagram
+}
+
+enum DealStatus {
+  PITCHING
+  NEGOTIATION
+  LOGISTICS_CONTRACT
+  DRAFT_REVIEW
+  LIVE_PENDING
+  COMPLETED
+}
+
+enum ReviewStatus {
+  APPROVED
+  REVISION_REQUESTED
+}
+
+model Creator {
+  id        String   @id
+  name      String
+  handle    String
+  email     String
+  platform  Platform
+  deals     Deal[]
+}
+
+model Deal {
+  title String @default("Creator collaboration")
+  isDemo Boolean @default(false)
+  stageHistory Json @default("[]")
+
+  id                     String           @id
+  creatorId              String
+  creator                Creator          @relation(fields: [creatorId], references: [id])
+  status                 DealStatus       @default(PITCHING)
+  scopeRequirements      String           @default("")
+  targetBudget           Decimal?
+  lockedAt               DateTime?
+  briefUrl               String?
+  plannedShipDate        DateTime?
+  expectedDeliveryDate   DateTime?
+  deliveredAt            DateTime?
+  scriptUrl              String?
+  sampleStatus           DeliverableStatus?
+  sampleNotes            String           @default("")
+  affiliateUrl           String?
+  requiredTags           String           @default("")
+  negotiationHistory     NegotiationEntry[]
+  contractDraft          ContractDraft?
+  deliverables           Deliverable[]
+  jobs                   AutomationJob[]
+  topicNotes             String           @default("")
+  askingRate             Decimal?
+  agreedRate             Decimal?
+  contractUrl            String?
+  contractSigned         Boolean          @default(false)
+  shippingAddress        String?
+  shippingTrackingNumber String?
+  targetLiveDate         DateTime?
+  draftUrl               String?
+  reviewStatus           ReviewStatus?
+  reviewNotes            String           @default("")
+  destinationUrl         String?
+  trackingLink           String?
+  hashtags               String?
+  liveVideoUrl           String?
+  publishedAt            DateTime?
+  revision               Int              @default(0)
+  metrics                MetricSnapshot[]
+}
+
+model MetricSnapshot {
+  id        String  @id @default(cuid())
+  dealId    String
+  deal      Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  dayNumber Int
+  views     Int
+  comments  Int
+  clicks    Int
+  orders    Int
+  source    String   @default("MANUAL")
+  capturedAt DateTime @default(now())
+
+  @@unique([dealId, dayNumber])
+}
+
+enum DeliverableKind {
+  SAMPLE
+  SCRIPT
+  DRAFT
+}
+
+enum DeliverableStatus {
+  SUBMITTED
+  PASSED
+  FAILED
+  APPROVED
+  REVISION_REQUESTED
+}
+
+enum JobKind {
+  EMAIL
+  METRICS
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  PREVIEW
+  DONE
+  FAILED
+  CANCELED
+}
+
+model NegotiationEntry {
+  id         String   @id @default(cuid())
+  dealId     String
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  askingRate Decimal?
+  offerRate  Decimal?
+  note       String
+  createdAt  DateTime @default(now())
+
+  @@index([dealId, createdAt])
+}
+
+model ContractDraft {
+  dealId    String   @id
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model Deliverable {
+  id        String            @id @default(cuid())
+  dealId    String
+  deal      Deal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  kind      DeliverableKind
+  status    DeliverableStatus
+  url       String?
+  notes     String            @default("")
+  createdAt DateTime          @default(now())
+
+  @@index([dealId, kind, createdAt])
+}
+
+model AutomationJob {
+  id             String    @id @default(cuid())
+  dealId         String
+  deal           Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  eventKey       String    @unique
+  kind           JobKind
+  payload        Json
+  status         JobStatus @default(PENDING)
+  dueAt          DateTime
+  attempts       Int       @default(0)
+  firstAttemptAt DateTime?
+  leaseUntil     DateTime?
+  leaseToken     String?
+  processedAt    DateTime?
+  providerId     String?
+  lastError      String?
+
+  @@index([status, dueAt])
+}
